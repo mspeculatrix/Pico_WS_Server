@@ -1,10 +1,11 @@
 """
 Pico 2W Asynchronous WebSockets-based Control Hub
 Target Platform: RP2350 (Raspberry Pi Pico 2W) running MicroPython
-Architecture: Cooperative concurrency via uasyncio, hardware-level interrupts,
-non-blocking USB-Serial CLI, and a custom RFC 6455 WebSocket server.
+Architecture: Cooperative concurrency via uasyncio, non-blocking USB-Serial CLI,
+and a custom RFC 6455 WebSocket server.
 """
 
+import json
 import sys
 
 import network
@@ -16,15 +17,15 @@ import uselect
 # ==============================================================================
 # TYPE CHECKING GUARD (Static Analysis vs Embedded Runtime)
 # ==============================================================================
-# Standard MicroPython builds do not include the full Python 'typing' module
-# to conserve flash storage and RAM. Importing it directly would cause an
-# ImportError on the device. By using TYPE_CHECKING (which is False at
-# runtime but True for tools like VS Code/Pylance), we enable strict static
-# analysis during development while keeping the embedded execution clean.
+# Standard MicroPython builds do not include the Python 'typing' module,
+# importing it directly would cause an ImportError on the device.
+# By using TYPE_CHECKING (which is False at runtime but True for tools like
+# VS Code/Pylance), we enable static analysis during development while
+# keeping the embedded execution clean.
 try:
 	from typing import TYPE_CHECKING
 except ImportError:
-	TYPE_CHECKING = False  # Default to False for runtime
+	TYPE_CHECKING = False
 
 if TYPE_CHECKING:
 	from typing import Any, List, Optional
@@ -32,8 +33,8 @@ if TYPE_CHECKING:
 # ==============================================================================
 # CONFIGURATION CONSTANTS & GLOBAL STATE
 # ==============================================================================
-WIFI_SSID = 'Minerva'
-WIFI_PASSWORD = 'CezanneZola'
+WIFI_SSID = 'YourSSID'
+WIFI_PASSWORD = 'YourPassword'
 WS_PORT = 8080
 
 # Track active WebSocket client stream writers for broadcasting telemetry
@@ -49,7 +50,7 @@ async def process_command(cmd_str: str) -> None:
 	USB-Serial terminal or remote WebSocket clients.
 
 	Currently supported commands:
-	  - STATUS: Reports current system state and active PWM value.
+	  - STATUS: Reports current system state.
 	"""
 	cmd_str = cmd_str.strip()
 
@@ -77,8 +78,8 @@ async def cli_task() -> None:
 	poll_obj = uselect.poll()
 	poll_obj.register(sys.stdin, uselect.POLLIN)
 
-	buffer = ''
-	print('[CLI] USB Serial CLI ready')
+	buffer: str = ''
+	print('[CLI] USB Serial CLI ready.')
 
 	while True:
 		# Check input stream with zero timeout (non-blocking poll)
@@ -104,8 +105,9 @@ async def cli_task() -> None:
 
 
 # ==============================================================================
-# WEBSOCKET PROTOCOL & TELEMETRY BROADCASTING HELPERS
+# WEBSOCKET PROTOCOL & MESSAGE BROADCASTING FUNCTIONS
 # ==============================================================================
+# Over WebSockets, messages are sent as stringified JSON.
 async def send_ws_message(writer: asyncio.StreamWriter, message: str) -> None:
 	"""
 	Constructs an unmasked RFC 6455 WebSocket text frame and writes it
@@ -131,7 +133,7 @@ async def send_ws_message(writer: asyncio.StreamWriter, message: str) -> None:
 	await writer.drain()
 
 
-async def broadcast_message(msg) -> None:
+async def broadcast_message(msg: dict[str, str | int]) -> None:
 	"""
 	Broadcast a message to all connected clients.
 	Basically a wrapper to send_ws_message()
@@ -139,7 +141,7 @@ async def broadcast_message(msg) -> None:
 	disconnected: list[Any] = []
 	for client_writer in ACTIVE_CLIENTS:
 		try:
-			await send_ws_message(client_writer, msg)
+			await send_ws_message(client_writer, json.dumps(msg))
 		except Exception:
 			disconnected.append(client_writer)
 
@@ -149,7 +151,8 @@ async def broadcast_message(msg) -> None:
 			ACTIVE_CLIENTS.remove(dead_client)
 
 	# Also print to CLI
-	print(msg)
+	for key in msg:
+		print(f'{key}: {msg[key]}')
 
 
 async def broadcast_status() -> None:
@@ -162,11 +165,12 @@ async def broadcast_status() -> None:
 	if not ACTIVE_CLIENTS:
 		return
 
-	# Build JSON message payload
-	status_fmt: str = '{ "type": "status", "clients": %d }'
-	status_json: str = status_fmt % (len(ACTIVE_CLIENTS))
+	status_msg: dict[str, str | int] = {
+		'type': 'status',
+		'clients': len(ACTIVE_CLIENTS),
+	}
 
-	await broadcast_message(status_json)
+	await broadcast_message(status_msg)
 
 
 def parse_websocket_frame(data: bytes) -> 'Optional[str]':
@@ -304,7 +308,7 @@ async def websocket_handler(
 
 async def network_task() -> None:
 	"""
-	Asynchronous task managing Wi-Fi connection state and initiating the
+	Asynchronous task managing wifi connection state and initiating the
 	TCP server listener socket for incoming WebSocket clients.
 	"""
 	wlan = network.WLAN(network.STA_IF)
@@ -358,4 +362,4 @@ async def main() -> None:
 try:
 	asyncio.run(main())
 except KeyboardInterrupt:
-	print('\nProgram interrupted by user. Shutting down...')
+	print('\nProgram interrupted. Shutting down...')
