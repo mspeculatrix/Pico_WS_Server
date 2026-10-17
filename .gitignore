@@ -1,0 +1,5 @@
+.DS_Store
+__*
+.micropico
+*.css.map
+.vscode
