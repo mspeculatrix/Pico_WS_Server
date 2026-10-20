@@ -317,14 +317,14 @@ async def network_task() -> None:
 	print(f'[NET] Connecting to Wi-Fi SSID: {WIFI_SSID}...')
 	wlan.connect(WIFI_SSID, WIFI_PASSWORD)
 
-	# Wait for association with a 30-second timeout ceiling
+	# Wait for association with a 30-second timeout
 	timeout = 30
 	while not wlan.isconnected() and timeout > 0:
 		await asyncio.sleep(1)
 		timeout -= 1
 
 	if not wlan.isconnected():
-		print('[NET ERROR] Wi-Fi connection timed out!')
+		print('[NET] ERR: Wi-Fi connection timed out!')
 		return
 
 	ip: str = wlan.ifconfig()[0]

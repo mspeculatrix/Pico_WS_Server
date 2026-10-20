@@ -15,3 +15,8 @@ I've included a simple web client to show how you might communicate with the Pic
 ![Web client](img/WS_Client_simple.png)
 
 This repo was set up to support an article on [_Machina Speculatrix_](https://medium.com/machina-speculatrix) (Medium subscription required).
+
+## REFERENCES
+
+- [RFC 6455: The WebSocket Protocol](https://www.rfc-editor.org/info/rfc6455/).
+- [WebSocket Protocol: RFC 6455 Handshake, Frames & More](https://websocket.org/guides/websocket-protocol/).
