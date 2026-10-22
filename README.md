@@ -4,6 +4,8 @@ This is MicroPython code to create a WebSockets server on a Raspberry Pi Pico 2W
 
 This was created mainly as a way of playing around with WebSockets.
 
+The wifi connection and WebSocket functionality have been moved to a class. As this is in a separate file, make sure you upload both `main.py` and `ws_server.py` to the Pico.
+
 The WebSockets code supports multiple clients because ... why not? Output to the clients consists of broadcasting the same messages to all those currently connected.
 
 There are, in fact, two ways of communicating with the Pico. There's WebSockets (duh) and a CLI via the Pico's USB. Responses from the Pico get sent to both channels.
